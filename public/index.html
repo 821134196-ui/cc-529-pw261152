@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多组织指标查询 · 授权与审计</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>多组织指标查询平台</h1>
+  <div class="actor-bar">
+    <label>当前操作者
+      <select id="actorSelect"></select>
+    </label>
+    <span class="hint">（授权/撤销操作以此身份执行，用于演示越权拒绝）</span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="tree">授权树</button>
+  <button class="tab" data-tab="query">指标查询</button>
+  <button class="tab" data-tab="tasks">导出与任务</button>
+  <button class="tab" data-tab="snapshots">快照与缓存</button>
+  <button class="tab" data-tab="audit">审计日志</button>
+</nav>
+
+<main>
+  <!-- 授权树 -->
+  <section id="tab-tree" class="panel active">
+    <div class="grid-2">
+      <div class="card">
+        <h2>组织授权树 <select id="treeUserSelect"></select></h2>
+        <div id="authzTree" class="tree"></div>
+        <div class="legend">
+          <span class="badge b-inherit">继承</span>
+          <span class="badge b-exception">例外授权</span>
+          <span class="badge b-temporary">临时授权</span>
+          <span class="badge b-revoked">已撤销</span>
+          <span class="badge b-none">无权限</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>授权管理</h2>
+        <form id="grantForm" class="form">
+          <label>目标用户 <select name="user_id" required></select></label>
+          <label>组织 <select name="org_id" required></select></label>
+          <label>类型
+            <select name="kind">
+              <option value="exception">例外授权（长期）</option>
+              <option value="temporary">临时授权（限时）</option>
+              <option value="revoke">撤销授权（否决）</option>
+            </select>
+          </label>
+          <label>有效期（秒，仅临时授权）<input name="ttl_seconds" type="number" min="1" placeholder="如 30"></label>
+          <label class="chk"><input name="include_desc" type="checkbox" checked> 包含下级组织</label>
+          <button type="submit">创建授权</button>
+        </form>
+        <div id="grantMsg"></div>
+        <h3>授权列表 <button id="reloadGrants" class="mini">刷新</button></h3>
+        <table id="grantsTable">
+          <thead><tr><th>#</th><th>用户</th><th>组织</th><th>类型</th><th>状态</th><th>创建者</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 指标查询 -->
+  <section id="tab-query" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>指标查询</h2>
+        <form id="queryForm" class="form">
+          <label>查询用户 <select name="user_id" required></select></label>
+          <label>指标 <select name="metric_id" required></select></label>
+          <label>组织 <select name="org_id" required></select></label>
+          <label>期间 <select name="period"></select></label>
+          <button type="submit">执行查询</button>
+        </form>
+        <div id="queryMsg"></div>
+        <div id="queryResult"></div>
+      </div>
+      <div class="card">
+        <h2>命中规则</h2>
+        <ul id="hitRules" class="rules"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 导出与任务 -->
+  <section id="tab-tasks" class="panel">
+    <div class="card">
+      <h2>发起导出</h2>
+      <form id="exportForm" class="form inline">
+        <label>用户 <select name="user_id" required></select></label>
+        <label>指标 <select name="metric_id" required></select></label>
+        <label>组织 <select name="org_id" required></select></label>
+        <label>期间 <select name="period"></select></label>
+        <button type="submit">加入导出队列</button>
+      </form>
+      <div id="exportMsg"></div>
+    </div>
+    <div class="card">
+      <h2>任务队列（每 2 秒自动刷新）</h2>
+      <table id="tasksTable">
+        <thead><tr><th>#</th><th>类型</th><th>用户</th><th>指标</th><th>组织</th><th>状态</th><th>原因/结果</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 快照与缓存 -->
+  <section id="tab-snapshots" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>历史快照 <select id="snapUserSelect"><option value="">全部用户</option></select></h2>
+        <table id="snapshotsTable">
+          <thead><tr><th>#</th><th>用户</th><th>指标</th><th>组织</th><th>类型</th><th>状态</th><th>失效原因</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>查询缓存 <select id="cacheUserSelect"></select></h2>
+        <table id="cacheTable">
+          <thead><tr><th>缓存键</th><th>纪元</th><th>写入时间</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="hint">权限变更后 perm_epoch 递增，旧纪元缓存键立即不可达并被物理清除。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 审计 -->
+  <section id="tab-audit" class="panel">
+    <div class="card">
+      <h2>审计日志（每 2 秒自动刷新）</h2>
+      <table id="auditTable">
+        <thead><tr><th>#</th><th>时间</th><th>操作者</th><th>动作</th><th>详情</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

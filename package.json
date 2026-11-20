@@ -1,0 +1,12 @@
+{
+  "name": "org-metrics-authz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "多组织指标查询应用：层级继承/例外/临时/撤销授权、敏感级别明细限制、权限变更传播（缓存/导出/队列/快照）、审计",
+  "scripts": {
+    "start": "node server/index.js",
+    "seed": "node server/seed.js",
+    "test": "node --test test/*.test.js"
+  }
+}
